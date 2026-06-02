@@ -651,6 +651,39 @@ body:hover .cursor-glow {
     transform: translateY(-2px);
 }
 
+.detail-item.detail-item-3d {
+    perspective: 1000px;
+}
+
+.detail-item.detail-item-3d .detail-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: linear-gradient(180deg, rgba(124, 92, 252, 0.18), rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transform-style: preserve-3d;
+    transform: translateZ(0);
+    transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+    position: relative;
+}
+
+.detail-item.detail-item-3d .detail-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateZ(-12px);
+    z-index: -1;
+}
+
+.detail-item.detail-item-3d:hover .detail-card {
+    transform: rotateX(10deg) rotateY(-14deg) translateZ(8px);
+    box-shadow: 0 28px 70px rgba(124, 92, 252, 0.18);
+}
+
 .detail-icon {
     font-size: 1.3rem;
 }

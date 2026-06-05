@@ -309,17 +309,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // ---- Tilt Effect on Project Cards ----
-    document.querySelectorAll('.project-card').forEach(card => {
+    // ---- Tilt Effect on Cards ----
+    document.querySelectorAll('.project-card, .skill-card, .about-image-card, .contact-card').forEach(card => {
         card.addEventListener('mousemove', (e) => {
             const rect = card.getBoundingClientRect();
             const x = (e.clientX - rect.left) / rect.width;
             const y = (e.clientY - rect.top) / rect.height;
 
-            const rotateX = (0.5 - y) * 8;
-            const rotateY = (x - 0.5) * 8;
+            const rotateX = (0.5 - y) * 10;
+            const rotateY = (x - 0.5) * 10;
 
-            card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`;
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`;
         });
 
         card.addEventListener('mouseleave', () => {
@@ -360,6 +360,130 @@ document.addEventListener('DOMContentLoaded', () => {
             cursor.style.animation = 'blink 1s step-end 3';
             cursor.addEventListener('animationend', () => cursor.remove());
         }, 4000);
+    }
+
+    // ---- 3D Interactive Avatar ("Him") ----
+    const about3DContainer = document.getElementById('about3DContainer');
+    if (about3DContainer && typeof THREE !== 'undefined') {
+        // Remove existing placeholder content
+        about3DContainer.innerHTML = '';
+        
+        const scene = new THREE.Scene();
+
+        // Lighting to match the dark/neon theme
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        const backLight = new THREE.DirectionalLight(0x7c5cfc, 1.2);
+        backLight.position.set(-10, 10, -10);
+        scene.add(backLight);
+
+        const camera = new THREE.PerspectiveCamera(45, about3DContainer.clientWidth / about3DContainer.clientHeight, 0.1, 100);
+        camera.position.z = 5.5;
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(about3DContainer.clientWidth, about3DContainer.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        about3DContainer.appendChild(renderer.domElement);
+
+        // Avatar Group
+        const headGroup = new THREE.Group();
+
+        // Head Base
+        const headGeo = new THREE.BoxGeometry(2, 2.2, 2);
+        const headMat = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a24, 
+            roughness: 0.2,
+            metalness: 0.3
+        });
+        const head = new THREE.Mesh(headGeo, headMat);
+        headGroup.add(head);
+
+        // Eyes (cyan glow)
+        const eyeGeo = new THREE.BoxGeometry(0.4, 0.15, 0.1);
+        const eyeMat = new THREE.MeshStandardMaterial({ 
+            color: 0x38bdf8,
+            emissive: 0x38bdf8,
+            emissiveIntensity: 0.8
+        });
+        
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.45, 0.3, 1.01);
+        headGroup.add(leftEye);
+
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.45, 0.3, 1.01);
+        headGroup.add(rightEye);
+
+        // Visor/Mouth (purple glow)
+        const mouthGeo = new THREE.BoxGeometry(1.4, 0.3, 0.1);
+        const mouthMat = new THREE.MeshStandardMaterial({
+            color: 0x7c5cfc,
+            emissive: 0x7c5cfc,
+            emissiveIntensity: 0.6
+        });
+        const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+        mouth.position.set(0, -0.4, 1.01);
+        headGroup.add(mouth);
+
+        // Headphone / Ear pieces
+        const earGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 16);
+        earGeo.rotateZ(Math.PI / 2);
+        const earMat = new THREE.MeshStandardMaterial({ color: 0x111118, roughness: 0.7 });
+        
+        const leftEar = new THREE.Mesh(earGeo, earMat);
+        leftEar.position.set(-1.05, 0, 0);
+        headGroup.add(leftEar);
+        
+        const rightEar = new THREE.Mesh(earGeo, earMat);
+        rightEar.position.set(1.05, 0, 0);
+        headGroup.add(rightEar);
+
+        scene.add(headGroup);
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            if (about3DContainer.clientWidth > 0) {
+                camera.aspect = about3DContainer.clientWidth / about3DContainer.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(about3DContainer.clientWidth, about3DContainer.clientHeight);
+            }
+        });
+
+        // Mouse Tracking Interaction
+        let targetRotationX = 0;
+        let targetRotationY = 0;
+        const windowHalfX = window.innerWidth / 2;
+        const windowHalfY = window.innerHeight / 2;
+
+        document.addEventListener('mousemove', (event) => {
+            // Calculate rotation based on cursor distance from center
+            targetRotationY = ((event.clientX - windowHalfX) / windowHalfX) * 0.8;
+            targetRotationX = ((event.clientY - windowHalfY) / windowHalfY) * 0.4;
+        });
+
+        // Animation Loop
+        const clock = new THREE.Clock();
+
+        const animate3D = function () {
+            requestAnimationFrame(animate3D);
+            const time = clock.getElapsedTime();
+
+            // Smoothly look at the cursor
+            headGroup.rotation.y += (targetRotationY - headGroup.rotation.y) * 0.05;
+            headGroup.rotation.x += (targetRotationX - headGroup.rotation.x) * 0.05;
+
+            // Add a subtle floating effect
+            headGroup.position.y = Math.sin(time * 1.5) * 0.1;
+            
+            renderer.render(scene, camera);
+        };
+
+        animate3D();
     }
 
 });

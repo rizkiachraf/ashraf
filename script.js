@@ -5,95 +5,146 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ---- Particle Background ----
-    const canvas = document.getElementById('particleCanvas');
-    const ctx = canvas.getContext('2d');
-    let particles = [];
-    let animationFrame;
+    // ---- 3D Full Page Background ----
+    const bgCanvas = document.getElementById('particleCanvas');
+    if (typeof THREE !== 'undefined' && bgCanvas) {
+        const bgScene = new THREE.Scene();
+        
+        // Background Camera
+        const bgCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        bgCamera.position.z = 30;
 
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+        // Renderer
+        const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, alpha: true, antialias: true });
+        bgRenderer.setSize(window.innerWidth, window.innerHeight);
+        bgRenderer.setPixelRatio(window.devicePixelRatio);
 
-    class Particle {
-        constructor() {
-            this.reset();
-        }
+        // Lighting
+        const bgAmbient = new THREE.AmbientLight(0xffffff, 0.4);
+        bgScene.add(bgAmbient);
 
-        reset() {
-            this.x = Math.random() * canvas.width;
-            this.y = Math.random() * canvas.height;
-            this.size = Math.random() * 1.5 + 0.3;
-            this.speedX = (Math.random() - 0.5) * 0.3;
-            this.speedY = (Math.random() - 0.5) * 0.3;
-            this.opacity = Math.random() * 0.5 + 0.1;
-            this.hue = Math.random() > 0.5 ? 260 : 200;
-        }
+        const bgPoint1 = new THREE.PointLight(0x7c5cfc, 2, 100);
+        bgPoint1.position.set(20, 20, 20);
+        bgScene.add(bgPoint1);
 
-        update() {
-            this.x += this.speedX;
-            this.y += this.speedY;
+        const bgPoint2 = new THREE.PointLight(0x38bdf8, 2, 100);
+        bgPoint2.position.set(-20, -20, 20);
+        bgScene.add(bgPoint2);
 
-            if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-            if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-        }
+        // Objects
+        const objects = [];
+        const geometry1 = new THREE.TorusGeometry(3, 0.8, 16, 100);
+        const geometry2 = new THREE.IcosahedronGeometry(2, 0);
+        const geometry3 = new THREE.OctahedronGeometry(2.5, 0);
 
-        draw() {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fillStyle = `hsla(${this.hue}, 80%, 70%, ${this.opacity})`;
-            ctx.fill();
-        }
-    }
-
-    function initParticles() {
-        const count = Math.min(Math.floor((canvas.width * canvas.height) / 15000), 80);
-        particles = Array.from({ length: count }, () => new Particle());
-    }
-
-    function drawConnections() {
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < 140) {
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = `rgba(124, 92, 252, ${0.06 * (1 - dist / 140)})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                }
-            }
-        }
-    }
-
-    function animateParticles() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(p => {
-            p.update();
-            p.draw();
+        const material1 = new THREE.MeshStandardMaterial({ 
+            color: 0x7c5cfc, wireframe: true, transparent: true, opacity: 0.3 
         });
-        drawConnections();
-        animationFrame = requestAnimationFrame(animateParticles);
-    }
+        const material2 = new THREE.MeshStandardMaterial({ 
+            color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.3 
+        });
 
-    initParticles();
-    animateParticles();
+        // Distribute objects along Y axis (downwards for scroll)
+        for (let i = 0; i < 60; i++) {
+            let mesh;
+            const rand = Math.random();
+            if (rand < 0.33) mesh = new THREE.Mesh(geometry1, material1);
+            else if (rand < 0.66) mesh = new THREE.Mesh(geometry2, material2);
+            else mesh = new THREE.Mesh(geometry3, material1);
 
-    // Cleanup on visibility change
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            cancelAnimationFrame(animationFrame);
-        } else {
-            animateParticles();
+            mesh.position.x = (Math.random() - 0.5) * 80;
+            // Spread them across a large scrollable area
+            mesh.position.y = Math.random() * 20 - (i * 6); 
+            mesh.position.z = (Math.random() - 0.5) * 40 - 10;
+
+            mesh.rotation.x = Math.random() * Math.PI;
+            mesh.rotation.y = Math.random() * Math.PI;
+
+            // Save random rotation speeds
+            mesh.userData = {
+                rx: (Math.random() - 0.5) * 0.01,
+                ry: (Math.random() - 0.5) * 0.01
+            };
+
+            bgScene.add(mesh);
+            objects.push(mesh);
         }
-    });
+
+        // Add 3D Particles
+        const particleGeo = new THREE.BufferGeometry();
+        const particleCount = 1500;
+        const posArray = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i+=3) {
+            posArray[i] = (Math.random() - 0.5) * 120;
+            posArray[i+1] = Math.random() * 20 - (i/3 * 0.3); // Spread along Y
+            posArray[i+2] = (Math.random() - 0.5) * 120;
+        }
+
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.15,
+            color: 0xc084fc,
+            transparent: true,
+            opacity: 0.6,
+            sizeAttenuation: true
+        });
+        const particlesMesh = new THREE.Points(particleGeo, particleMat);
+        bgScene.add(particlesMesh);
+
+        // Scroll Logic
+        let scrollY = window.scrollY;
+        let baseCameraY = 0;
+        
+        function moveCamera() {
+            scrollY = window.scrollY;
+            // Move camera down as we scroll down
+            baseCameraY = -(scrollY * 0.08);
+        }
+
+        window.addEventListener('scroll', moveCamera);
+        moveCamera(); // Init
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            bgCamera.aspect = window.innerWidth / window.innerHeight;
+            bgCamera.updateProjectionMatrix();
+            bgRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Mouse Parallax for background
+        let bgMouseX = 0;
+        let bgMouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            bgMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            bgMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        // Animation Loop
+        const animateBg = function () {
+            requestAnimationFrame(animateBg);
+
+            // Rotate objects
+            objects.forEach(obj => {
+                obj.rotation.x += obj.userData.rx;
+                obj.rotation.y += obj.userData.ry;
+            });
+
+            // Slowly rotate particle field
+            particlesMesh.rotation.y -= 0.0003;
+
+            // Mouse parallax effect on camera
+            bgCamera.position.x += (bgMouseX * 3 - bgCamera.position.x) * 0.05;
+            
+            // Apply base scroll Y + mouse parallax Y
+            const targetY = baseCameraY + (bgMouseY * 3);
+            bgCamera.position.y += (targetY - bgCamera.position.y) * 0.05;
+
+            bgRenderer.render(bgScene, bgCamera);
+        };
+
+        animateBg();
+    }
 
 
     // ---- Cursor Glow Effect ----
